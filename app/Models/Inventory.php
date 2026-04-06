@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Inventory extends Model
 {
@@ -23,6 +24,11 @@ class Inventory extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function movements(): HasManyThrough
+    {
+        return $this->hasManyThrough(InventoryMovement::class, Order::class);
     }
 
     public function availableQty(): int
