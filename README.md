@@ -184,6 +184,27 @@ vendor/bin/pint
 
 Test suite: 43 tests, 119 assertions covering unit tests for services/jobs/enums and feature tests for API endpoints and full end-to-end flows.
 
+## Docker Setup (Alternative)
+
+Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
+
+**1. Set your app key in `.env.docker`:**
+```bash
+php artisan key:generate --show
+# Copy the output into APP_KEY in .env.docker
+```
+
+**2. Run migrations inside the container:**
+```bash
+docker compose up -d
+docker compose exec app php artisan migrate --force
+```
+
+**3. The API is available at `http://localhost:8000`**
+
+Both the web server (`app`) and queue worker (`queue`) start automatically.
+The `queue` service processes the `suppliers` and `default` queues needed for async reservation logic.
+
 ## Design Decisions & Trade-offs
 
 ### Inventory Model: qty_total + qty_reserved

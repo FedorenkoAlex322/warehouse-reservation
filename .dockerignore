@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.docker
+vendor/
+node_modules/
+.git/
+.claude/
+CLAUDE.md
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+*.sqlite

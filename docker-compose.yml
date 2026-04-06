@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env.docker
+    volumes:
+      - sqlite_data:/var/www/database
+
+  queue:
+    build: .
+    command: php artisan queue:work --queue=suppliers,default --tries=3 --sleep=3
+    env_file: .env.docker
+    volumes:
+      - sqlite_data:/var/www/database
+    depends_on:
+      - app
+
+volumes:
+  sqlite_data:
