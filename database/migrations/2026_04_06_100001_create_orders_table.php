@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->string('sku')->index();
+            $table->foreignId('inventory_id')->constrained('inventories');
             $table->unsignedInteger('qty');
             $table->string('status')->default(OrderStatus::Pending->value);
             $table->string('supplier_ref')->nullable();

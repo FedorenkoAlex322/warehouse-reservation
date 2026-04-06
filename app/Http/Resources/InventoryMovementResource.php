@@ -15,7 +15,7 @@ class InventoryMovementResource extends JsonResource
         /** @var InventoryMovement $this */
         return [
             'id' => $this->id,
-            'sku' => $this->sku,
+            'sku' => $this->order->inventory->sku,
             'type' => $this->type,
             'direction' => $this->direction,
             'quantity' => $this->quantity,

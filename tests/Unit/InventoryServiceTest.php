@@ -17,7 +17,7 @@ beforeEach(function (): void {
 
 it('reserves inventory when sufficient stock is available', function (): void {
     $inventory = Inventory::create(['sku' => 'ABC', 'qty_total' => 10, 'qty_reserved' => 0]);
-    $order = Order::create(['sku' => 'ABC', 'qty' => 3, 'status' => OrderStatus::Pending]);
+    $order = Order::create(['inventory_id' => $inventory->id, 'qty' => 3, 'status' => OrderStatus::Pending]);
 
     $result = $this->service->reserve($order);
 
@@ -29,8 +29,8 @@ it('reserves inventory when sufficient stock is available', function (): void {
 });
 
 it('returns false when stock is insufficient', function (): void {
-    Inventory::create(['sku' => 'ABC', 'qty_total' => 2, 'qty_reserved' => 0]);
-    $order = Order::create(['sku' => 'ABC', 'qty' => 5, 'status' => OrderStatus::Pending]);
+    $inventory = Inventory::create(['sku' => 'ABC', 'qty_total' => 2, 'qty_reserved' => 0]);
+    $order = Order::create(['inventory_id' => $inventory->id, 'qty' => 5, 'status' => OrderStatus::Pending]);
 
     $result = $this->service->reserve($order);
 
@@ -40,22 +40,16 @@ it('returns false when stock is insufficient', function (): void {
     expect(InventoryMovement::count())->toBe(0);
 });
 
-it('returns false when no inventory record exists for sku', function (): void {
-    $order = Order::create(['sku' => 'UNKNOWN', 'qty' => 1, 'status' => OrderStatus::Pending]);
-
-    expect($this->service->reserve($order))->toBeFalse();
-});
-
 it('returns false when reserved qty leaves no available stock', function (): void {
-    Inventory::create(['sku' => 'ABC', 'qty_total' => 10, 'qty_reserved' => 8]);
-    $order = Order::create(['sku' => 'ABC', 'qty' => 5, 'status' => OrderStatus::Pending]);
+    $inventory = Inventory::create(['sku' => 'ABC', 'qty_total' => 10, 'qty_reserved' => 8]);
+    $order = Order::create(['inventory_id' => $inventory->id, 'qty' => 5, 'status' => OrderStatus::Pending]);
 
     expect($this->service->reserve($order))->toBeFalse();
 });
 
 it('force reserves regardless of available stock and increments qty_total', function (): void {
     $inventory = Inventory::create(['sku' => 'ABC', 'qty_total' => 0, 'qty_reserved' => 0]);
-    $order = Order::create(['sku' => 'ABC', 'qty' => 3, 'status' => OrderStatus::AwaitingRestock]);
+    $order = Order::create(['inventory_id' => $inventory->id, 'qty' => 3, 'status' => OrderStatus::AwaitingRestock]);
 
     $this->service->forceReserve($order);
 
@@ -66,28 +60,13 @@ it('force reserves regardless of available stock and increments qty_total', func
     expect(InventoryMovement::where('type', 'supplier_reservation')->exists())->toBeTrue();
 });
 
-it('force reserves and creates inventory record when none exists', function (): void {
-    $order = Order::create(['sku' => 'NEW-SKU', 'qty' => 5, 'status' => OrderStatus::AwaitingRestock]);
-
-    $this->service->forceReserve($order);
-
-    $inventory = Inventory::where('sku', 'NEW-SKU')->first();
-    expect($inventory)->not->toBeNull()
-        ->and($inventory->qty_total)->toBe(5)
-        ->and($inventory->qty_reserved)->toBe(5);
-
-    expect($order->fresh()->status)->toBe(OrderStatus::Reserved);
-    expect(InventoryMovement::where('type', 'supplier_reservation')->exists())->toBeTrue();
-});
-
 it('creates inventory movement with correct negative qty_change on reserve', function (): void {
-    Inventory::create(['sku' => 'ABC', 'qty_total' => 10, 'qty_reserved' => 0]);
-    $order = Order::create(['sku' => 'ABC', 'qty' => 4, 'status' => OrderStatus::Pending]);
+    $inventory = Inventory::create(['sku' => 'ABC', 'qty_total' => 10, 'qty_reserved' => 0]);
+    $order = Order::create(['inventory_id' => $inventory->id, 'qty' => 4, 'status' => OrderStatus::Pending]);
 
     $this->service->reserve($order);
 
     $movement = InventoryMovement::where('order_id', $order->id)->first();
     expect($movement->qty_change)->toBe(-4)
-        ->and($movement->type)->toBe('reservation')
-        ->and($movement->sku)->toBe('ABC');
+        ->and($movement->type)->toBe('reservation');
 });

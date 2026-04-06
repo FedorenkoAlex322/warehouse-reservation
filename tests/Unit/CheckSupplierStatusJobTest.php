@@ -18,8 +18,10 @@ uses(RefreshDatabase::class);
 
 function makeAwaitingOrder(int $attemptCount = 0): Order
 {
+    $inventory = Inventory::create(['sku' => 'ABC', 'qty_total' => 0, 'qty_reserved' => 0]);
+
     return Order::create([
-        'sku' => 'ABC',
+        'inventory_id' => $inventory->id,
         'qty' => 3,
         'status' => OrderStatus::AwaitingRestock,
         'supplier_ref' => 'SUP-123',
@@ -28,7 +30,6 @@ function makeAwaitingOrder(int $attemptCount = 0): Order
 }
 
 it('sets order to reserved when supplier returns ok', function (): void {
-    Inventory::create(['sku' => 'ABC', 'qty_total' => 0, 'qty_reserved' => 0]);
     $order = makeAwaitingOrder();
 
     Http::fake(['*/supplier/status/*' => Http::response(['status' => 'ok'])]);
@@ -76,8 +77,9 @@ it('sets order to failed after second delayed response', function (): void {
 });
 
 it('skips processing if order is already in reserved status', function (): void {
+    $inventory = Inventory::create(['sku' => 'ABC', 'qty_total' => 10, 'qty_reserved' => 0]);
     $order = Order::create([
-        'sku' => 'ABC',
+        'inventory_id' => $inventory->id,
         'qty' => 3,
         'status' => OrderStatus::Reserved,
     ]);
@@ -91,8 +93,9 @@ it('skips processing if order is already in reserved status', function (): void 
 });
 
 it('skips processing if order is already in failed status', function (): void {
+    $inventory = Inventory::create(['sku' => 'ABC', 'qty_total' => 10, 'qty_reserved' => 0]);
     $order = Order::create([
-        'sku' => 'ABC',
+        'inventory_id' => $inventory->id,
         'qty' => 3,
         'status' => OrderStatus::Failed,
     ]);

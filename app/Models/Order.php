@@ -6,12 +6,13 @@ namespace App\Models;
 
 use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
     protected $fillable = [
-        'sku',
+        'inventory_id',
         'qty',
         'status',
         'supplier_ref',
@@ -22,7 +23,13 @@ class Order extends Model
         'status' => OrderStatus::class,
         'qty' => 'integer',
         'attempt_count' => 'integer',
+        'inventory_id' => 'integer',
     ];
+
+    public function inventory(): BelongsTo
+    {
+        return $this->belongsTo(Inventory::class);
+    }
 
     public function movements(): HasMany
     {
