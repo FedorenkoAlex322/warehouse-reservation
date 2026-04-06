@@ -55,7 +55,7 @@ class InventoryService
             $inventory->save();
 
             InventoryMovement::create([
-                'qty_change' => -$order->qty,
+                'qty_change' => $order->qty,
                 'type' => MovementType::SupplierReservation->value,
                 'order_id' => $order->id,
             ]);
