@@ -6,7 +6,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\InventoryMovementResource;
 use App\Models\Inventory;
-use App\Models\InventoryMovement;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class InventoryController extends Controller
@@ -15,12 +14,9 @@ class InventoryController extends Controller
     {
         $inventory = Inventory::where('sku', $sku)->firstOrFail();
 
-        $movements = InventoryMovement::query()
-            ->join('orders', 'inventory_movements.order_id', '=', 'orders.id')
-            ->where('orders.inventory_id', $inventory->id)
-            ->select('inventory_movements.*')
+        $movements = $inventory->movements()
             ->with('order.inventory')
-            ->orderBy('inventory_movements.created_at', 'desc')
+            ->orderByDesc('inventory_movements.created_at')
             ->get();
 
         return InventoryMovementResource::collection($movements);

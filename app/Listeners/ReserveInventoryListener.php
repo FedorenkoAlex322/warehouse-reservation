@@ -38,7 +38,7 @@ class ReserveInventoryListener implements ShouldQueue
         // Insufficient stock — call supplier
         try {
             $result = $this->supplierService->reserve(
-                sku: $order->inventory->sku,
+                sku: $order->inventory?->sku ?? '',
                 qty: $order->qty,
             );
         } catch (\Throwable) {
