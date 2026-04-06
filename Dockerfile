@@ -7,12 +7,16 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
+# Copy only composer files first for layer caching
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --optimize-autoloader
+RUN composer install --no-dev --no-interaction --no-scripts --no-plugins --optimize-autoloader
 
+# Copy full application
 COPY . .
 
-RUN chmod -R 775 storage bootstrap/cache \
+# Run post-install scripts now that artisan is available
+RUN composer run-script post-autoload-dump --no-interaction \
+    && chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
