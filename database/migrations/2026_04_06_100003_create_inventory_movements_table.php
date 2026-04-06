@@ -12,7 +12,6 @@ return new class extends Migration
     {
         Schema::create('inventory_movements', function (Blueprint $table) {
             $table->id();
-            $table->string('sku')->index();
             $table->integer('qty_change');
             $table->string('type');
             $table->foreignId('order_id')->constrained('orders')->cascadeOnDelete();

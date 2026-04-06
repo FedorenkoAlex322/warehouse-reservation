@@ -15,7 +15,7 @@ class OrderResource extends JsonResource
         /** @var Order $this */
         return [
             'id' => $this->id,
-            'sku' => $this->sku,
+            'sku' => $this->inventory->sku,
             'qty' => $this->qty,
             'status' => $this->status->value,
             'supplier_ref' => $this->supplier_ref,

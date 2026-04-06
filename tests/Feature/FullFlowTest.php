@@ -9,9 +9,12 @@ use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Services\InventoryService;
 use App\Services\SupplierService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+
+uses(RefreshDatabase::class);
 
 it('reserves order immediately when inventory is sufficient', function (): void {
     Inventory::create(['sku' => 'WIDGET-001', 'qty_total' => 10, 'qty_reserved' => 0]);
@@ -19,7 +22,7 @@ it('reserves order immediately when inventory is sufficient', function (): void 
     $this->postJson('/api/order', ['sku' => 'WIDGET-001', 'qty' => 3])
         ->assertStatus(201);
 
-    $order = Order::where('sku', 'WIDGET-001')->first();
+    $order = Order::first();
 
     expect($order->status)->toBe(OrderStatus::Reserved);
     expect(InventoryMovement::where('order_id', $order->id)->exists())->toBeTrue();
@@ -41,7 +44,7 @@ it('calls supplier when inventory is insufficient and reserves on ok response', 
     $this->postJson('/api/order', ['sku' => 'WIDGET-001', 'qty' => 3])
         ->assertStatus(201);
 
-    $order = Order::where('sku', 'WIDGET-001')->first();
+    $order = Order::first();
 
     expect($order->fresh()->status)->toBe(OrderStatus::AwaitingRestock)
         ->and($order->fresh()->supplier_ref)->toBe('SUP-TEST-1');
@@ -68,7 +71,7 @@ it('fails order after two delayed responses from supplier', function (): void {
 
     $this->postJson('/api/order', ['sku' => 'WIDGET-001', 'qty' => 3])->assertStatus(201);
 
-    $order = Order::where('sku', 'WIDGET-001')->first();
+    $order = Order::first();
 
     // First delayed response
     (new CheckSupplierStatusJob($order->fresh()))
@@ -94,7 +97,7 @@ it('fails order immediately when supplier declines with accepted false', functio
 
     $this->postJson('/api/order', ['sku' => 'WIDGET-001', 'qty' => 3])->assertStatus(201);
 
-    $order = Order::where('sku', 'WIDGET-001')->first();
+    $order = Order::first();
     expect($order->fresh()->status)->toBe(OrderStatus::Failed);
 });
 
@@ -107,7 +110,7 @@ it('fails order when supplier http call throws connection exception', function (
 
     $this->postJson('/api/order', ['sku' => 'WIDGET-001', 'qty' => 3])->assertStatus(201);
 
-    $order = Order::where('sku', 'WIDGET-001')->first();
+    $order = Order::first();
     expect($order->fresh()->status)->toBe(OrderStatus::Failed);
 });
 

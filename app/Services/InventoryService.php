@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Enums\MovementType;
 use App\Enums\OrderStatus;
-use App\Models\Inventory;
 use App\Models\InventoryMovement;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
@@ -21,9 +20,7 @@ class InventoryService
     public function reserve(Order $order): bool
     {
         return DB::transaction(function () use ($order): bool {
-            $inventory = Inventory::where('sku', $order->sku)
-                ->lockForUpdate()
-                ->first();
+            $inventory = $order->inventory()->lockForUpdate()->first();
 
             if ($inventory === null || $inventory->availableQty() < $order->qty) {
                 return false;
@@ -33,7 +30,6 @@ class InventoryService
             $inventory->save();
 
             InventoryMovement::create([
-                'sku' => $order->sku,
                 'qty_change' => -$order->qty,
                 'type' => MovementType::Reservation->value,
                 'order_id' => $order->id,
@@ -52,24 +48,13 @@ class InventoryService
     public function forceReserve(Order $order): void
     {
         DB::transaction(function () use ($order): void {
-            $inventory = Inventory::where('sku', $order->sku)
-                ->lockForUpdate()
-                ->first();
+            $inventory = $order->inventory()->lockForUpdate()->firstOrFail();
 
-            if ($inventory === null) {
-                Inventory::create([
-                    'sku' => $order->sku,
-                    'qty_total' => $order->qty,
-                    'qty_reserved' => $order->qty,
-                ]);
-            } else {
-                $inventory->qty_total += $order->qty;
-                $inventory->qty_reserved += $order->qty;
-                $inventory->save();
-            }
+            $inventory->qty_total += $order->qty;
+            $inventory->qty_reserved += $order->qty;
+            $inventory->save();
 
             InventoryMovement::create([
-                'sku' => $order->sku,
                 'qty_change' => -$order->qty,
                 'type' => MovementType::SupplierReservation->value,
                 'order_id' => $order->id,

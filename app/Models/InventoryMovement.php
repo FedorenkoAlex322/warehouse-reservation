@@ -12,7 +12,6 @@ class InventoryMovement extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'sku',
         'qty_change',
         'type',
         'order_id',
