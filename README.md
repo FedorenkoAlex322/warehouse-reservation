@@ -144,59 +144,53 @@ Inventory movement audit log for a SKU, ordered by most recent first.
 
 ## Setup & Running
 
+### Option A — Docker (recommended, zero setup)
+
+Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
+
 ```bash
-# Clone and install
 git clone <repo-url>
-cd warehouse_reserve
+cd warehouse-reservation
+docker compose up --build
+```
+
+`.env.docker` is pre-configured and ready to use — **no `cp`, no `key:generate`**.
+The entrypoint automatically creates the SQLite file and runs migrations.
+
+**API available at `http://localhost:8000`**
+
+---
+
+### Option B — Local (PHP 8.2+, Composer)
+
+```bash
+git clone <repo-url>
+cd warehouse-reservation
 composer install
 
-# Environment
 cp .env.example .env
 php artisan key:generate
 
-# Database (SQLite for local dev)
 touch database/database.sqlite
 php artisan migrate
 php artisan db:seed --class=InventorySeeder
 
-# Start application
+# Terminal 1 — web server
 php artisan serve
 
-# Start queue worker (separate terminal)
+# Terminal 2 — queue worker
 php artisan queue:work --queue=suppliers,default
 ```
 
 ## Running Tests
 
 ```bash
-# Run full test suite
 vendor/bin/pest
-
-# Run with coverage
 vendor/bin/pest --coverage
-
-# Code style check
 vendor/bin/pint --test
-
-# Code style fix
-vendor/bin/pint
 ```
 
-Test suite: 43 tests, 119 assertions covering unit tests for services/jobs/enums and feature tests for API endpoints and full end-to-end flows.
-
-## Docker Setup (Alternative)
-
-Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
-
-`.env.docker` is pre-configured and ready to use — no changes needed.
-
-```bash
-docker compose up --build
-```
-
-That's it. The entrypoint automatically:
-- Creates the SQLite database file
-- Runs migrations
+Test suite: 43 tests, 119 assertions — unit tests for services/jobs/enums and feature tests for all API endpoints and full end-to-end flows.
 
 **API is available at `http://localhost:8000`**
 
