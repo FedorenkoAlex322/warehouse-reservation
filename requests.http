@@ -4,6 +4,9 @@
 ###   WIDGET-001: qty_total=100, qty_reserved=0, available=100
 ###   WIDGET-002: qty_total=5,   qty_reserved=0, available=5
 ###   GADGET-001: qty_total=0,   qty_reserved=0, available=0
+###
+### ВАЖНО: все POST-запросы должны содержать Accept: application/json
+### иначе Laravel вернёт 302 redirect вместо 422 при ошибке валидации
 ### ================================================================
 
 @baseUrl = http://localhost:8000
@@ -16,29 +19,34 @@
 ### 1.1 — Нет обязательного поля sku → 422
 POST {{baseUrl}}/api/order
 Content-Type: application/json
+Accept: application/json
 
 {"qty": 5}
 
 ### 1.2 — Нет обязательного поля qty → 422
 POST {{baseUrl}}/api/order
 Content-Type: application/json
+Accept: application/json
 
 {"sku": "WIDGET-001"}
 
 ### 1.3 — qty = 0 не разрешён → 422
 POST {{baseUrl}}/api/order
 Content-Type: application/json
+Accept: application/json
 
 {"sku": "WIDGET-001", "qty": 0}
 
 ### 1.4 — Несуществующий SKU → 404
 POST {{baseUrl}}/api/order
 Content-Type: application/json
+Accept: application/json
 
 {"sku": "UNKNOWN-SKU", "qty": 1}
 
 ### 1.5 — Несуществующий order → 404
 GET {{baseUrl}}/api/orders/99999
+Accept: application/json
 
 
 ### ================================================================
@@ -52,16 +60,19 @@ GET {{baseUrl}}/api/orders/99999
 # %}
 POST {{baseUrl}}/api/order
 Content-Type: application/json
+Accept: application/json
 
 {"sku": "WIDGET-001", "qty": 10}
 
 ### 2.2 — Через 2–3 сек: проверить статус → status=reserved
 # Подставить id из ответа 2.1
 GET {{baseUrl}}/api/orders/1
+Accept: application/json
 
 ### 2.3 — Движения по WIDGET-001
 # Ожидаем: type=reservation, direction=outbound, quantity=10
 GET {{baseUrl}}/api/inventory/WIDGET-001/movements
+Accept: application/json
 
 ### 2.4 — Проверка инварианта: qty_reserved обновился
 # Проверить в Navicat:
@@ -78,20 +89,24 @@ GET {{baseUrl}}/api/inventory/WIDGET-001/movements
 ### 3.1 — Создать заказ → 201, status=pending
 POST {{baseUrl}}/api/order
 Content-Type: application/json
+Accept: application/json
 
 {"sku": "WIDGET-002", "qty": 10}
 
 ### 3.2 — Через ~1 сек: listener отработал → status=awaiting_restock, supplier_ref заполнен
 GET {{baseUrl}}/api/orders/2
+Accept: application/json
 
 ### 3.3 — Через 15–20 сек: CheckSupplierStatusJob отработал → status=reserved
 # SupplierController возвращает ok в ~60% случаев
 # Если вернул fail или delayed — повторить тест (или см. Блок 4/5)
 GET {{baseUrl}}/api/orders/2
+Accept: application/json
 
 ### 3.4 — Движения по WIDGET-002
 # Ожидаем: type=supplier_reservation, direction=inbound (qty_change положительный)
 GET {{baseUrl}}/api/inventory/WIDGET-002/movements
+Accept: application/json
 
 
 ### ================================================================
@@ -106,14 +121,17 @@ GET {{baseUrl}}/api/inventory/WIDGET-002/movements
 ### 4.1 — Создать заказ → 201, status=pending
 POST {{baseUrl}}/api/order
 Content-Type: application/json
+Accept: application/json
 
 {"sku": "GADGET-001", "qty": 5}
 
 ### 4.2 — Через 2–3 сек → status=failed, supplier_ref=null
 GET {{baseUrl}}/api/orders/3
+Accept: application/json
 
 ### 4.3 — InventoryMovement НЕ должен быть создан → пустой массив []
 GET {{baseUrl}}/api/inventory/GADGET-001/movements
+Accept: application/json
 
 
 ### ================================================================
@@ -130,17 +148,21 @@ GET {{baseUrl}}/api/inventory/GADGET-001/movements
 ### 5.1 — Создать заказ → 201, status=pending
 POST {{baseUrl}}/api/order
 Content-Type: application/json
+Accept: application/json
 
 {"sku": "GADGET-001", "qty": 5}
 
 ### 5.2 — Через ~1 сек → status=awaiting_restock, supplier_ref заполнен
 GET {{baseUrl}}/api/orders/4
+Accept: application/json
 
 ### 5.3 — Через ~15 сек: первый delayed → status=awaiting_restock, attempt_count=1
 GET {{baseUrl}}/api/orders/4
+Accept: application/json
 
 ### 5.4 — Через ~30 сек: второй delayed → status=failed, attempt_count=2
 GET {{baseUrl}}/api/orders/4
+Accept: application/json
 
 
 ### ================================================================
@@ -152,6 +174,7 @@ GET {{baseUrl}}/api/orders/4
 
 ### 6.1 — Зарезервированный заказ из Блока 2 — статус не изменился
 GET {{baseUrl}}/api/orders/1
+Accept: application/json
 
 
 ### ================================================================
