@@ -1,0 +1,172 @@
+### ================================================================
+### Warehouse Reservation System — Manual Test Suite
+### Начальный state БД после сидера:
+###   WIDGET-001: qty_total=100, qty_reserved=0, available=100
+###   WIDGET-002: qty_total=5,   qty_reserved=0, available=5
+###   GADGET-001: qty_total=0,   qty_reserved=0, available=0
+### ================================================================
+
+@baseUrl = http://localhost:8000
+
+
+### ================================================================
+### БЛОК 1 — Валидация (ожидаем 422 / 404)
+### ================================================================
+
+### 1.1 — Нет обязательного поля sku → 422
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+
+{"qty": 5}
+
+### 1.2 — Нет обязательного поля qty → 422
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+
+{"sku": "WIDGET-001"}
+
+### 1.3 — qty = 0 не разрешён → 422
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+
+{"sku": "WIDGET-001", "qty": 0}
+
+### 1.4 — Несуществующий SKU → 404
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+
+{"sku": "UNKNOWN-SKU", "qty": 1}
+
+### 1.5 — Несуществующий order → 404
+GET {{baseUrl}}/api/orders/99999
+
+
+### ================================================================
+### БЛОК 2 — Путь: достаточно stock → reserved без поставщика
+### WIDGET-001 available=100, заказываем 10
+### ================================================================
+
+### 2.1 — Создать заказ → 201, status=pending
+# > {%
+#   client.global.set("order_id_1", response.body.data.id);
+# %}
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+
+{"sku": "WIDGET-001", "qty": 10}
+
+### 2.2 — Через 2–3 сек: проверить статус → status=reserved
+# Подставить id из ответа 2.1
+GET {{baseUrl}}/api/orders/1
+
+### 2.3 — Движения по WIDGET-001
+# Ожидаем: type=reservation, direction=outbound, quantity=10
+GET {{baseUrl}}/api/inventory/WIDGET-001/movements
+
+### 2.4 — Проверка инварианта: qty_reserved обновился
+# Проверить в Navicat:
+# SELECT sku, qty_total, qty_reserved, qty_total - qty_reserved AS available
+# FROM inventories WHERE sku = 'WIDGET-001';
+# Ожидается: qty_reserved=10, available=90
+
+
+### ================================================================
+### БЛОК 3 — Путь: недостаточно stock → поставщик accepted=true → ok → reserved
+### WIDGET-002 available=5, заказываем 10
+### ================================================================
+
+### 3.1 — Создать заказ → 201, status=pending
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+
+{"sku": "WIDGET-002", "qty": 10}
+
+### 3.2 — Через ~1 сек: listener отработал → status=awaiting_restock, supplier_ref заполнен
+GET {{baseUrl}}/api/orders/2
+
+### 3.3 — Через 15–20 сек: CheckSupplierStatusJob отработал → status=reserved
+# SupplierController возвращает ok в ~60% случаев
+# Если вернул fail или delayed — повторить тест (или см. Блок 4/5)
+GET {{baseUrl}}/api/orders/2
+
+### 3.4 — Движения по WIDGET-002
+# Ожидаем: type=supplier_reservation, direction=inbound (qty_change положительный)
+GET {{baseUrl}}/api/inventory/WIDGET-002/movements
+
+
+### ================================================================
+### БЛОК 4 — Путь: поставщик accepted=false → failed
+### GADGET-001 available=0, всегда нехватка
+###
+### ПЕРЕД ТЕСТОМ: в SupplierController::reserve() поменять:
+###   'accepted' => true  →  'accepted' => false
+### ПОСЛЕ ТЕСТА: вернуть обратно + docker compose up --build -d
+### ================================================================
+
+### 4.1 — Создать заказ → 201, status=pending
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+
+{"sku": "GADGET-001", "qty": 5}
+
+### 4.2 — Через 2–3 сек → status=failed, supplier_ref=null
+GET {{baseUrl}}/api/orders/3
+
+### 4.3 — InventoryMovement НЕ должен быть создан → пустой массив []
+GET {{baseUrl}}/api/inventory/GADGET-001/movements
+
+
+### ================================================================
+### БЛОК 5 — Путь: delayed × 2 → failed
+###
+### ПЕРЕД ТЕСТОМ: в SupplierController::status() поменять:
+###   $statuses = ['ok', 'ok', 'ok', 'delayed', 'fail'];
+###   return response()->json(['status' => $statuses[array_rand($statuses)]]);
+###   →
+###   return response()->json(['status' => 'delayed']);
+### ПОСЛЕ ТЕСТА: вернуть обратно + docker compose up --build -d
+### ================================================================
+
+### 5.1 — Создать заказ → 201, status=pending
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+
+{"sku": "GADGET-001", "qty": 5}
+
+### 5.2 — Через ~1 сек → status=awaiting_restock, supplier_ref заполнен
+GET {{baseUrl}}/api/orders/4
+
+### 5.3 — Через ~15 сек: первый delayed → status=awaiting_restock, attempt_count=1
+GET {{baseUrl}}/api/orders/4
+
+### 5.4 — Через ~30 сек: второй delayed → status=failed, attempt_count=2
+GET {{baseUrl}}/api/orders/4
+
+
+### ================================================================
+### БЛОК 6 — Инвариант: терминальные статусы необратимы
+### Косвенная проверка — смотреть docker logs queue
+###   docker compose logs queue --tail=50
+### Ожидается: нет повторных обработок для reserved/failed заказов
+### ================================================================
+
+### 6.1 — Зарезервированный заказ из Блока 2 — статус не изменился
+GET {{baseUrl}}/api/orders/1
+
+
+### ================================================================
+### БЛОК 7 — Инфраструктура
+### ================================================================
+
+### 7.1 — Healthcheck Laravel → 200 OK
+GET {{baseUrl}}/up
+
+### 7.2 — Root endpoint → {"service":"warehouse-reservation","status":"ok"}
+GET {{baseUrl}}/
+
+### 7.3 — Проверка инварианта qty_reserved <= qty_total
+# Выполнить в Navicat:
+# SELECT sku, qty_total, qty_reserved,
+#        CASE WHEN qty_reserved > qty_total THEN 'VIOLATION' ELSE 'OK' END AS check
+# FROM inventories;
+# Ожидается: все строки OK
