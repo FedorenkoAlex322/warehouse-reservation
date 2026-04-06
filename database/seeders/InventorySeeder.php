@@ -18,7 +18,10 @@ class InventorySeeder extends Seeder
         ];
 
         foreach ($items as $item) {
-            Inventory::create($item);
+            Inventory::firstOrCreate(
+                ['sku' => $item['sku']],
+                ['qty_total' => $item['qty_total'], 'qty_reserved' => $item['qty_reserved']],
+            );
         }
     }
 }
