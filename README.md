@@ -188,22 +188,21 @@ Test suite: 43 tests, 119 assertions covering unit tests for services/jobs/enums
 
 Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
 
-**1. Set your app key in `.env.docker`:**
+`.env.docker` is pre-configured and ready to use — no changes needed.
+
 ```bash
-php artisan key:generate --show
-# Copy the output into APP_KEY in .env.docker
+docker compose up --build
 ```
 
-**2. Run migrations inside the container:**
-```bash
-docker compose up -d
-docker compose exec app php artisan migrate --force
-```
+That's it. The entrypoint automatically:
+- Creates the SQLite database file
+- Runs migrations
 
-**3. The API is available at `http://localhost:8000`**
+**API is available at `http://localhost:8000`**
 
-Both the web server (`app`) and queue worker (`queue`) start automatically.
-The `queue` service processes the `suppliers` and `default` queues needed for async reservation logic.
+Both the web server (`app`) and queue worker (`queue`) start automatically and share the same SQLite volume.
+
+> **Note:** `APP_ENV=local` is used in Docker to keep error reporting helpful during evaluation. Switch to `production` for real deployments.
 
 ## Design Decisions & Trade-offs
 
