@@ -8,7 +8,7 @@ Senior Laravel developer test assignment.
 | Component    | Technology                           |
 |--------------|--------------------------------------|
 | Framework    | Laravel 12, PHP 8.2+                 |
-| Database     | SQLite (dev/test), PostgreSQL (prod) |
+| Database     | PostgreSQL (Docker), SQLite (local/tests) |
 | Queue        | Laravel Queue — database driver      |
 | Testing      | Pest 3 — 43 tests, 119 assertions    |
 | Code Quality | Laravel Pint (PSR-12)                |
@@ -105,7 +105,7 @@ cd warehouse-reservation
 docker compose up --build
 ```
 
-`.env.docker` is pre-configured. Entrypoint creates the SQLite file and runs migrations automatically.
+`.env.docker` is pre-configured with PostgreSQL credentials. The `db` service starts first (healthcheck), then `app` and `queue` run migrations automatically.
 **API at `http://localhost:8000`**
 
 ### Option B — Local (PHP 8.2+)
@@ -134,7 +134,7 @@ vendor/bin/pint --test
 
 **`ShouldDispatchAfterCommit`** — ensures `OrderCreated` fires only after the order row is committed. Without this, the queued listener could query the order before it exists, causing a race condition.
 
-**Pessimistic locking** — `reserve()` uses `lockForUpdate()` inside a transaction to serialize concurrent reservations of the same SKU. Note: SQLite locks at the table level; PostgreSQL provides row-level locks as intended for production.
+**Pessimistic locking** — `reserve()` uses `lockForUpdate()` inside a transaction to serialize concurrent reservations of the same SKU. PostgreSQL provides row-level locking; local SQLite (used for tests) locks at the table level — behaviorally correct but less granular.
 
 **Enums everywhere** — `OrderStatus`, `SupplierStatus`, `MovementType` — no magic strings, IDE autocompletion, safe refactoring. `OrderStatus::isTerminal()` encapsulates domain logic on the enum itself.
 
